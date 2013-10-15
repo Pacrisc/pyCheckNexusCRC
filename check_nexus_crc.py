@@ -42,6 +42,7 @@ def main(argv):
     #load the interfaces list from csv file 
     interfaces = csv.reader(open(interfaceListFile, 'rU'), delimiter = ',')
 
+    # Loops throught the csv checking the interfaces and returning value
     for interface, description in interfaces:
         print description+' errors: '+getErrorsOnIf(interface)
 
