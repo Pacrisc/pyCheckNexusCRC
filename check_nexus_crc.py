@@ -1,26 +1,29 @@
 #!/usr/bin/python
-import subprocess, sys, getopt, re
+import subprocess, sys, getopt, re, csv
 
 # Set initial values 
 community = ''
 host = ''
 snmpget = '/usr/bin/snmpget'
 OID = '.1.3.6.1.2.1.2.2.1.14.'
+interfaceListFile = '/home/travis/nexus_if.csv'
+
 
 # Main application 
 def main(argv):
 
     global community
     global host
+    global interfaceListFile
 
     # single interface OID to be checked for this version
     interface = '436236288'
 
     # Verify and Process the command line arguments and print a error message 
     try: 
-        opts, args = getopt.getopt(argv, "c:h:",["community=","host=","help"]) 
+        opts, args = getopt.getopt(argv, "c:h:i:",["community=","host=","interfaces","help"]) 
     except getopt.GetoptError:
-        print "\n\n  Invalid Syntax \n  syntax is \'pyCheckNexusCRC.py -c <community>\' \n\n"
+        print "\n\n  Invalid Syntax \n  syntax is \'pyCheckNexusCRC.py -c <community> -h <host> -i <interfaceListFile>\' \n\n"
         sys.exit(2)
 
     # Set the globals based on arguments 
@@ -33,8 +36,17 @@ def main(argv):
             community = arg
         elif opt in ("-h", "--host"):
             host = arg
+        elif opt in ("-i", "--interfaces"):
+            interfaceListFile = arg
+
+    #load the interfaces list from csv file 
+    interfaces = csv.reader(open(interfaceListFile, 'rU'), delimiter = ',')
+
+    for interface, description in interfaces:
+        print description+' errors: '+getErrorsOnIf(interface)
+
     # get quanity CRC errros on a givin single interface
-    print getErrorsOnIf(interface)
+    #print getErrorsOnIf(interface)
 
 # Function which returns CRC error counts via snmp from nexus switches
 # accepts interface OID's and uses globals for arguments
