@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import subprocess, sys, getopt, re, csv
+from pprint import pprint
 
 # Set initial values 
 community = ''
@@ -7,7 +8,8 @@ host = ''
 snmpget = '/usr/bin/snmpget'
 OID = '.1.3.6.1.2.1.2.2.1.14.'
 interfaceListFile = '/home/travis/nexus_if.csv'
-
+totalErrors = 0
+statsListFile = '/tmp/nexusStatsListFile.csv'
 
 # Main application 
 def main(argv):
@@ -15,6 +17,7 @@ def main(argv):
     global community
     global host
     global interfaceListFile
+    global totalErrors
 
     # single interface OID to be checked for this version
     interface = '436236288'
@@ -38,15 +41,29 @@ def main(argv):
             host = arg
         elif opt in ("-i", "--interfaces"):
             interfaceListFile = arg
+    
+    interfaces = openIfListFile(interfaceListFile)
 
-    #load the interfaces list from csv file 
-    interfaces = csv.reader(open(interfaceListFile, 'rU'), delimiter = ',')
+    #open the stats file
+    statistics = readStatsListFile(statsListFile)
 
+    statisticsNew = []
     # Loops throught the csv checking the interfaces and returning value
     for interface, description in interfaces:
-        print description+' errors: '+getErrorsOnIf(interface)
-
-    # get quanity CRC errros on a givin single interface
+        errors = getErrorsOnIf(interface)
+        totalErrors += errors
+        print interface+', '+str(errors)+': '
+        statisticsNew.append({ interface : str(errors) })
+      
+    # Print total errors 
+    print totalErrors
+    
+    pprint(statisticsNew)
+    
+    if writeStatsListFile(statsListFile, statisticsNew):
+        print 'file written'
+    
+   # get quanity CRC errros on a givin single interface
     #print getErrorsOnIf(interface)
 
 # Function which returns CRC error counts via snmp from nexus switches
@@ -70,13 +87,42 @@ def getErrorsOnIf(interface):
 
     # If executed properly, matches error count and returns value
     if returnCode == 0:
-        Errors = reErrors.match(stdout).group(2)
-        return Errors
+        errors = reErrors.match(stdout).group(2)
+        return int(errors)
     # Returns Critical and strerr if anything other than returnCode 0
     else:
         print 'CRITICAL: '+stderr
         sys.exit()
 
+def openIfListFile(filePath):
+   
+    #load the interfaces list from csv file
+    file = open(filePath) 
+    return csv.reader(file, delimiter = ',')
+
+def readStatsListFile(filePath):
+    dictionary = []
+    
+    file = open(filePath)
+    readFile = csv.reader(file, delimiter = ',')
+    
+    for row in readFile:
+        dictionary.append({ row[0] : row[1]})
+
+    file.close()
+    return dictionary
+
+
+def writeStatsListFile(filePath, dictionary):
+    file = open(filePath, 'w+')
+    csvFile = csv.writer(file, delimiter = ',')
+    
+    for i  in dictionary:
+        print(i, dictionary[i])
+        
+    file.close()
+
+    return True
 
 # Runs the main function if this file is not loaded as a module.
 if __name__ == "__main__":
